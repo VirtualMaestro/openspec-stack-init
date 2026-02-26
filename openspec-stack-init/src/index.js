@@ -226,6 +226,13 @@ if (existsSync(join(TARGET_DIR, "openspec"))) {
   const ok = run("openspec init --tools claude --profile core --force");
   if (ok) {
     log.ok("OpenSpec initialized (core profile, Claude tools)");
+
+    // Remove default config.yaml so custom template can be written in Step 3
+    const defaultConfig = join(TARGET_DIR, "openspec", "config.yaml");
+    if (existsSync(defaultConfig)) {
+      unlinkSync(defaultConfig);
+    }
+
     // Switch to expanded profile to unlock: new, ff, verify, sync, bulk-archive, onboard
     // openspec config profile sets the global default, openspec update regenerates skill files
     const expanded = run("openspec config profile expanded", { silent: true }) &&
