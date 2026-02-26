@@ -1,0 +1,33 @@
+{
+  "name": "openspec-stack-init",
+  "version": "1.0.0",
+  "description": "Initialize OpenSpec + Beads + claude-mem + skills in any project",
+  "author": {
+    "name": "VirtualMaestro",
+    "email": "virtualmaestro@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/VirtualMaestro/openspec-stack-init.git"
+  },
+  "homepage": "https://github.com/VirtualMaestro/openspec-stack-init#readme",
+  "bugs": {
+    "url": "https://github.com/VirtualMaestro/openspec-stack-init/issues"
+  },
+  "bin": {
+    "openspec-stack-init": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "execa": "^8.0.1",
+    "ora": "^8.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["openspec", "beads", "claude-mem", "claude-code", "ai-stack"],
+  "license": "MIT"
+}
