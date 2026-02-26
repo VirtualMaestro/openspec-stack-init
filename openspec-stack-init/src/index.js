@@ -191,10 +191,10 @@ context: |
   Project: ${PROJECT_NAME}
 
   # TODO: fill in your actual stack and conventions
-  # Tech stack: Unity 2022, C#, Flutter backend
-  # Architecture: HMVC
-  # Testing: NUnit
-  # Key constraints: legacy codebase, brownfield migration
+  # Tech stack: e.g. TypeScript, React, Node.js / Unity, C# / Python, Django
+  # Architecture: e.g. MVC, HMVC, ECS, microservices
+  # Testing: e.g. Jest, NUnit, pytest
+  # Key constraints: e.g. legacy codebase, must support IE11, no breaking API changes
 
 rules:
   proposal:
