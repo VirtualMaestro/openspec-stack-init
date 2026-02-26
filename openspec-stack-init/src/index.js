@@ -110,7 +110,7 @@ function gitignoreAdd(entry, comment) {
 // ─── Banner ───────────────────────────────────────────────────────────────────
 console.log(`
 ${c.bold}╔══════════════════════════════════════════╗
-║         AI Stack Init  v1.0              ║
+║    OpenSpec Stack Init  v1.0             ║
 ║  OpenSpec + Beads + claude-mem + skills  ║
 ╚══════════════════════════════════════════╝${c.reset}
   Project : ${c.cyan}${PROJECT_NAME}${c.reset}
@@ -154,16 +154,24 @@ log.step("OpenSpec — init");
 if (existsSync(join(TARGET_DIR, "openspec"))) {
   log.skip("openspec/ already exists");
 } else if (hasCmd("openspec")) {
-  // --tools claude   : select Claude Code without interactive prompt
-  // --profile expanded: enable all workflow commands (new, ff, verify, sync, etc.)
-  // --force          : skip all remaining prompts, auto-cleanup legacy files
-  const ok = run("openspec init --tools claude --profile expanded --force");
+  // --tools claude : select Claude Code without interactive prompt
+  // --profile core : valid profile for init (expanded is set separately after)
+  // --force        : skip all remaining prompts, auto-cleanup legacy files
+  const ok = run("openspec init --tools claude --profile core --force");
   if (ok) {
-    log.ok("OpenSpec initialized (expanded profile, Claude tools)");
+    log.ok("OpenSpec initialized (core profile, Claude tools)");
+    // Switch to expanded profile to unlock: new, ff, verify, sync, bulk-archive, onboard
+    // openspec config profile sets the global default, openspec update regenerates skill files
+    const expanded = run("openspec config profile expanded", { silent: true }) &&
+                     run("openspec update --tools claude --force", { silent: true });
+    if (expanded) {
+      log.ok("OpenSpec profile upgraded to expanded");
+    } else {
+      log.warn("Could not auto-upgrade to expanded profile.");
+      log.warn("Run manually: openspec config profile  →  then select expanded  →  openspec update");
+    }
   } else {
-    // Fallback: openspec init may not support --force on older versions
-    log.warn("Non-interactive init failed — trying interactive...");
-    log.warn("Run manually: openspec init --tools claude --profile expanded");
+    log.warn("OpenSpec init failed — run manually: openspec init --tools claude --profile core --force");
   }
 } else {
   log.warn("openspec not found — skipping");
@@ -214,10 +222,12 @@ const beadsInitialized =
 if (beadsInitialized) {
   log.skip("Beads already initialized");
 } else if (hasCmd("bd")) {
-  // --quiet: non-interactive, no prompts, no spinner
-  const ok = run("bd init --quiet");
+  // --quiet: non-interactive mode
+  // echo N: answers "Contributing to someone else's repo? [y/N]" automatically
+  const bdCmd = IS_WINDOWS ? "echo N | bd init --quiet" : "echo N | bd init --quiet";
+  const ok = run(bdCmd);
   if (ok) log.ok("Beads initialized (quiet mode)");
-  else log.warn("bd init failed — run manually: bd init --quiet");
+  else log.warn("bd init failed — run manually: echo N | bd init --quiet");
 } else {
   log.warn("bd not found — skipping Beads init");
 }

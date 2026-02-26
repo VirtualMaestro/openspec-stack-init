@@ -1,6 +1,6 @@
 {
   "name": "openspec-stack-init",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Initialize OpenSpec + Beads + claude-mem + skills in any project",
   "author": {
     "name": "VirtualMaestro",
@@ -28,6 +28,12 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "keywords": ["openspec", "beads", "claude-mem", "claude-code", "ai-stack"],
+  "keywords": [
+    "openspec",
+    "beads",
+    "claude-mem",
+    "claude-code",
+    "ai-stack"
+  ],
   "license": "MIT"
 }
