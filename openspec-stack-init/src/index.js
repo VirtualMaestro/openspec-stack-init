@@ -258,7 +258,7 @@ context: |
 
   # TODO: fill in your actual stack and conventions
   # Tech stack: e.g. TypeScript, React, Node.js / Unity, C# / Python, Django
-  # Architecture: e.g. MVC, HMVC, ECS, microservices
+  # Architecture: e.g. MVC, HMVC, ECS, Redux, MVVM, microservices
   # Testing: e.g. Jest, NUnit, pytest
   # Key constraints: e.g. legacy codebase, must support IE11, no breaking API changes
 
@@ -266,6 +266,7 @@ rules:
   proposal:
     - Always include a rollback plan for legacy code changes
     - List all affected modules
+    - Always include an "## Alternatives Considered" section listing at least 2 alternative approaches with their pros, cons, and reason for rejection. Format each as: "### Option: <name> / Pros: ... / Cons: ... / Why rejected: ..."
   specs:
     - Use Given/When/Then format for scenarios
   design:

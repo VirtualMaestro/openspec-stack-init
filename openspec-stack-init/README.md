@@ -19,13 +19,29 @@ npx openspec-stack-init ./my-project --dry-run
 
 ## What it installs
 
-| Tool | What it does | Non-interactive flag used |
+| Tool | What it does | How |
 |---|---|---|
-| **OpenSpec** | Spec-driven development | `openspec init --tools claude --profile expanded --force` |
-| **Beads** | Git-backed issue tracker / agent memory | `bd init --quiet` + `bd setup claude` |
+| **OpenSpec** | Spec-driven development | `openspec init --tools claude --profile core --force` |
+| **Beads** | Git-backed issue tracker / agent memory | `bd init --quiet` + `bd setup claude` (CLI hooks) |
 | **claude-mem** | Automatic session memory via hooks | `claude plugin marketplace add` + `claude plugin install` |
 | **openspec-to-beads** | Syncs OpenSpec tasks.md → Beads issues | `npx @smithery/cli skill add` |
 | **/migrate-to-openspec** | Brownfield migration skill | Copied to `.claude/skills/migrate-to-openspec/` |
+
+### Beads: CLI vs Claude Code Plugin
+
+This package installs **Beads CLI level** only:
+
+- `bd init` — creates `.beads/` and `issues.jsonl` in your project (git-committed)
+- `bd setup claude` — installs `SessionStart` and `PreCompact` hooks so Claude Code gets task context automatically
+
+There is also an **optional Beads Claude Code Plugin** that adds slash commands (`/beads:ready`, `/beads:create`, etc.) and an MCP server. It cannot be installed automatically from a shell script — install it manually inside Claude Code if you want it:
+
+```
+/plugin marketplace add steveyegge/beads
+/plugin install beads
+```
+
+For most projects the CLI level is sufficient — Claude Code agents call `bd` via bash.
 
 ## Prerequisites
 

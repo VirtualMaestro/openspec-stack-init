@@ -1,6 +1,6 @@
 {
   "name": "openspec-stack-init",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "description": "Initialize OpenSpec + Beads + claude-mem + skills in any project",
   "author": {
