@@ -9,8 +9,8 @@
 //   npx openspec-stack-init --dry-run        — preview without executing
 
 import { execSync, spawnSync } from "child_process";
-import { existsSync, mkdirSync, writeFileSync, appendFileSync, readFileSync } from "fs";
-import { resolve, basename, join } from "path";
+import { existsSync, mkdirSync, writeFileSync, appendFileSync, readFileSync, statSync, unlinkSync } from "fs";
+import { resolve, basename, join, sep, dirname } from "path";
 import { platform } from "os";
 import process from "process";
 
@@ -60,6 +60,21 @@ function run(cmd, opts = {}) {
     });
     return true;
   } catch (e) {
+    // Provide detailed error information
+    const errorMsg = opts.silent && e.stderr
+      ? e.stderr.toString().trim()
+      : e.message;
+
+    if (!opts.silent) {
+      log.error(`Command failed: ${cmd}`);
+      if (errorMsg) {
+        log.error(`Error: ${errorMsg}`);
+      }
+      if (e.status) {
+        log.error(`Exit code: ${e.status}`);
+      }
+    }
+
     return false;
   }
 }
@@ -77,18 +92,46 @@ function hasCmd(cmd) {
 
 /** Write file only if it doesn't exist (or DRY_RUN) */
 function writeIfMissing(filePath, content, description) {
-  const full = join(TARGET_DIR, filePath);
+  // Normalize path separators for cross-platform compatibility
+  const normalizedPath = filePath.split(/[/\\]+/).join(sep);
+
+  // Resolve full path
+  const full = resolve(TARGET_DIR, normalizedPath);
+
+  // SECURITY: Verify resolved path stays within TARGET_DIR
+  const normalizedTarget = resolve(TARGET_DIR);
+  if (!full.startsWith(normalizedTarget + sep) && full !== normalizedTarget) {
+    log.error(`Security: Path traversal detected in "${filePath}"`);
+    log.error(`Attempted to write outside target directory`);
+    process.exit(1);
+  }
+
   if (existsSync(full)) {
     log.skip(`${filePath} already exists`);
     return;
   }
+
   if (DRY_RUN) {
     log.info(`[DRY RUN] Would create: ${filePath}`);
     return;
   }
-  mkdirSync(join(TARGET_DIR, filePath.split("/").slice(0, -1).join("/")), { recursive: true });
-  writeFileSync(full, content, "utf8");
-  log.ok(`Created ${filePath}${description ? ` — ${description}` : ""}`);
+
+  // Use dirname instead of string manipulation
+  const parentDir = dirname(full);
+  try {
+    mkdirSync(parentDir, { recursive: true });
+  } catch (err) {
+    log.error(`Failed to create directory ${parentDir}: ${err.message}`);
+    process.exit(1);
+  }
+
+  try {
+    writeFileSync(full, content, "utf8");
+    log.ok(`Created ${filePath}${description ? ` — ${description}` : ""}`);
+  } catch (err) {
+    log.error(`Failed to write ${filePath}: ${err.message}`);
+    process.exit(1);
+  }
 }
 
 /** Append to .gitignore if entry is missing */
@@ -120,6 +163,29 @@ ${c.bold}╔══════════════════════�
 
 if (!existsSync(TARGET_DIR)) {
   log.error(`Directory not found: ${TARGET_DIR}`);
+  process.exit(1);
+}
+
+// Validate it's actually a directory
+try {
+  const stats = statSync(TARGET_DIR);
+  if (!stats.isDirectory()) {
+    log.error(`Target path is not a directory: ${TARGET_DIR}`);
+    process.exit(1);
+  }
+} catch (err) {
+  log.error(`Failed to access target directory: ${err.message}`);
+  process.exit(1);
+}
+
+// Test write permissions
+const testFile = join(TARGET_DIR, `.openspec-test-${Date.now()}`);
+try {
+  writeFileSync(testFile, '');
+  unlinkSync(testFile);
+} catch (permErr) {
+  log.error(`No write permission for directory: ${TARGET_DIR}`);
+  log.error(`Error: ${permErr.message}`);
   process.exit(1);
 }
 
@@ -224,7 +290,7 @@ if (beadsInitialized) {
 } else if (hasCmd("bd")) {
   // --quiet: non-interactive mode
   // echo N: answers "Contributing to someone else's repo? [y/N]" automatically
-  const bdCmd = IS_WINDOWS ? "echo N | bd init --quiet" : "echo N | bd init --quiet";
+  const bdCmd = "echo N | bd init --quiet";
   const ok = run(bdCmd);
   if (ok) log.ok("Beads initialized (quiet mode)");
   else log.warn("bd init failed — run manually: echo N | bd init --quiet");
@@ -289,21 +355,26 @@ log.step("Skill — /migrate-to-openspec (brownfield migration)");
 
 // The skill files are bundled alongside this script in ../skills/
 import { fileURLToPath } from "url";
-import { dirname, join as pathJoin } from "path";
 import { cpSync } from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const skillSrc = pathJoin(__dirname, "..", "skills", "migrate-to-openspec");
+const skillSrc = join(__dirname, "..", "skills", "migrate-to-openspec");
 const skillDst = join(TARGET_DIR, ".claude", "skills", "migrate-to-openspec");
 
 if (existsSync(skillDst)) {
   log.skip(".claude/skills/migrate-to-openspec/ already exists");
 } else if (existsSync(skillSrc)) {
   if (!DRY_RUN) {
-    mkdirSync(join(TARGET_DIR, ".claude", "skills"), { recursive: true });
-    cpSync(skillSrc, skillDst, { recursive: true });
-    log.ok("Skill /migrate-to-openspec installed → .claude/skills/migrate-to-openspec/");
+    try {
+      mkdirSync(join(TARGET_DIR, ".claude", "skills"), { recursive: true });
+      cpSync(skillSrc, skillDst, { recursive: true });
+      log.ok("Skill /migrate-to-openspec installed → .claude/skills/migrate-to-openspec/");
+    } catch (err) {
+      log.error(`Failed to install skill: ${err.message}`);
+      log.warn("Continuing without skill installation...");
+      // Don't exit - skill is optional enhancement
+    }
   } else {
     log.info("[DRY RUN] Would install: .claude/skills/migrate-to-openspec/");
   }
