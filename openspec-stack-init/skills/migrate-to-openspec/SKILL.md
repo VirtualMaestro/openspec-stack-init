@@ -55,6 +55,30 @@ Announce to the user:
 
 Spawn all 4 agents simultaneously using the Task tool:
 
+> **GLOBAL RULE FOR ALL SCOUT AGENTS — DIRECTORY EXCLUSIONS**
+>
+> Before scanning anything, read `.gitignore` (and `.git/info/exclude` if present):
+>
+> ```bash
+> cat .gitignore 2>/dev/null
+> cat .git/info/exclude 2>/dev/null
+> ```
+>
+> Every pattern listed in `.gitignore` must be respected — never read files or
+> descend into ignored directories. This automatically covers `node_modules/`,
+> `Library/`, `Temp/`, `dist/`, `__pycache__/`, `.env`, and anything else
+> the project owner has already decided to exclude.
+>
+> Additionally, always exclude regardless of `.gitignore` content:
+> - `.git/` — version control internals
+> - `openspec/` — being written by this migration right now
+> - `.beads/` `.beads-cache/` `.claude-mem/` — tool data
+>
+> When building `grep` exclude flags, parse `.gitignore` to extract directory
+> patterns and convert them to `--exclude-dir=<name>` flags dynamically.
+> Always include `--exclude-dir=.git` as a baseline.
+
+
 ### Scout Agent 1 — Project Structure & Tech Stack
 
 Task prompt:
@@ -163,9 +187,21 @@ Do NOT modify any files.
 
 1. SEARCH FOR DEBT MARKERS
    Run these searches across all source files:
-   - grep -rn "TODO" --include="*.cs" --include="*.ts" --include="*.js" --include="*.py" --include="*.dart" --include="*.go" --include="*.rs" --include="*.lua" . | head -200
-   - grep -rn "FIXME\|HACK\|BUG\|BROKEN\|WORKAROUND\|TEMPORARY\|TEMP\b" --include="*.cs" --include="*.ts" --include="*.js" --include="*.py" --include="*.dart" --include="*.go" --include="*.rs" --include="*.lua" . | head -200
-   - grep -rn "DEPRECATED\|OBSOLETE\|REMOVE\|DELETE ME\|REFACTOR" --include="*.cs" --include="*.ts" --include="*.js" --include="*.py" --include="*.dart" --include="*.go" --include="*.rs" --include="*.lua" . | head -100
+   First, build exclusion flags from .gitignore:
+   ```bash
+   EXCLUDE="--exclude-dir=.git --exclude-dir=openspec"
+   while IFS= read -r line; do
+     # skip comments and empty lines, extract directory patterns
+     [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+     dir="${line%/}"  # strip trailing slash
+     [[ -d "$dir" ]] && EXCLUDE="$EXCLUDE --exclude-dir=$dir"
+   done < .gitignore
+   ```
+
+   Then run searches using $EXCLUDE:
+   - grep -rn "TODO" $EXCLUDE --include="*.cs" --include="*.ts" --include="*.js" --include="*.py" --include="*.dart" --include="*.go" --include="*.rs" --include="*.lua" . | head -200
+   - grep -rn "FIXME\|HACK\|BUG\|BROKEN\|WORKAROUND\|TEMPORARY\|TEMP\b" $EXCLUDE --include="*.cs" --include="*.ts" --include="*.js" --include="*.py" --include="*.dart" --include="*.go" --include="*.rs" --include="*.lua" . | head -200
+   - grep -rn "DEPRECATED\|OBSOLETE\|REMOVE\|DELETE ME\|REFACTOR" $EXCLUDE --include="*.cs" --include="*.ts" --include="*.js" --include="*.py" --include="*.dart" --include="*.go" --include="*.rs" --include="*.lua" . | head -100
    - Adapt file extensions to the actual tech stack of this project.
 
 2. CLASSIFY EACH ITEM into one of:
