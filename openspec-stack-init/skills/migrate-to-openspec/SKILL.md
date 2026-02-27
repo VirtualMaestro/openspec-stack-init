@@ -142,6 +142,14 @@ Search for and read:
 5. Any .md files in root or subdirectories (sample up to 30 files)
 6. Comments at the top of key source files that describe the module purpose
 7. Any openspec/ folder content that already exists
+8. **Implementation plan files** (search multiple common locations):
+   - Search directories: docs/implementation-plans/, docs/plans/, plans/, docs/design/, design/
+   - Search for files matching patterns: *-PLAN.md, *-IMPLEMENTATION.md, *-DESIGN.md, IMPLEMENTATION-*.md
+   - For each plan file found:
+     * Read FULL CONTENT (not just summary)
+     * Extract: scope, detailed tasks, library/technology choices, presets/patterns, integration approach
+     * Summarize each plan in 200-300 words
+     * Note which planned work item (phase/milestone) this plan supports
 
 For each document found, extract:
 - Its PURPOSE (what does it describe?)
@@ -170,6 +178,7 @@ Return your findings as a structured markdown report under these exact headings:
 ## EXTRACTED_REQUIREMENTS (bulleted list of concrete requirements found)
 ## ARCHITECTURAL_DECISIONS (decisions already made, from ADRs or docs)
 ## FUTURE_PLANS (things mentioned as planned/upcoming/TODO in documentation)
+## IMPLEMENTATION_PLANS (full summaries of each plan file with scope, tasks, library choices, presets)
 ## RAW_EXCERPTS (paste the most important 3-5 paragraphs from docs verbatim)
 ## CLAUDE_MD_AUDIT
 ### Current references in CLAUDE.md:
@@ -184,6 +193,43 @@ Task prompt:
 ```
 You are a read-only scout agent. Find ALL signals of active work and technical debt.
 Do NOT modify any files.
+
+PART A — PLANNED WORK DISCOVERY (Generic across projects)
+
+1. SEARCH FOR PLANNING DOCUMENTS
+   Try multiple common file names (check in order, use first found):
+   ```bash
+   for file in docs/ROADMAP.md ROADMAP.md docs/TODO.md TODO.md docs/PLAN.md PLAN.md docs/TASKS.md TASKS.md docs/BACKLOG.md BACKLOG.md; do
+     if [ -f "$file" ]; then
+       echo "FOUND: $file"
+       cat "$file"
+       break
+     fi
+   done
+   ```
+
+2. EXTRACT PLANNED WORK
+   Look for patterns indicating planned/future work:
+   - Sections with headers containing: "Planned", "Not Started", "Future", "Upcoming", "TODO", "Backlog"
+   - Unchecked task lists: `[ ]` or `- [ ]`
+   - Phase/milestone markers: "Phase N:", "Milestone:", "Sprint:"
+   - Status markers: "Status: Planned", "Status: Not started"
+
+3. FOR EACH PLANNED ITEM, document:
+   - Item identifier (phase number, milestone name, or section title)
+   - Title/description
+   - Goal (1 sentence if available)
+   - Status (Planned / Not started / Future)
+   - Implementation plan reference (if mentioned, e.g., "See [PLAN.md]")
+   - Task count (how many unchecked tasks `[ ]`)
+
+4. FIND FUTURE/EXPLORATORY SECTIONS
+   Search for section headers containing any of these keywords:
+   - "Future", "Exploratory", "Backlog", "Ideas", "Future Work", "Wishlist", "Nice to Have", "Someday", "Research"
+
+   Extract all items listed under these sections (bullets, numbered lists, paragraphs)
+
+PART B — CODE DEBT MARKERS
 
 1. SEARCH FOR DEBT MARKERS
    Run these searches across all source files:
@@ -222,6 +268,21 @@ Do NOT modify any files.
    - Files with many commented-out blocks
 
 Return your findings as a structured markdown report under these headings:
+## PLANNED_WORK (list all planned items from planning documents)
+### Item: <identifier> - <title>
+- Goal: ...
+- Status: ...
+- Source: <file path>
+- Implementation plan: <file path if referenced>
+- Task count: <N unchecked tasks>
+
+## FUTURE_EXPLORATORY (list all items from Future/Exploratory sections)
+- Source: <file path and section name>
+- Items:
+  - <item 1>
+  - <item 2>
+  [...]
+
 ## DEBT_SUMMARY (count by category: X features, Y bugs, Z debt items, etc.)
 ## FEATURES (list: "filename:line - description")
 ## BUGS (list: "filename:line - description")
@@ -364,10 +425,62 @@ Note at the top of each spec file: `# Auto-generated — review for accuracy`
 
 ## Phase 6: Create OpenSpec Changes for Active Work
 
-For each item in Scout Agent 3's FEATURES and BUGS lists that represents
-**unfinished or planned work**, create an OpenSpec change.
+### Part A: Changes from Planned Work (Planning Documents)
 
-For each such item:
+For each item in Scout Agent 3's **PLANNED_WORK** list:
+
+1. **Read the implementation plan file** (if referenced):
+   - Use Read tool to get full content of the implementation plan
+   - Extract detailed task list, library/technology choices, presets/patterns, integration approach
+   - If no implementation plan file exists, use the item description from the planning document
+
+2. Create `openspec/changes/<kebab-name>/`
+
+3. Write `proposal.md`:
+
+```markdown
+# Proposal: <Item Title>
+# Auto-generated from: <source file> <item identifier> — review and refine as needed.
+
+## Why
+<Extract goal and rationale from planning document>
+
+Discovered in: `<source file>` <item identifier>
+<If implementation plan exists: "Detailed plan: `<path to implementation plan>`">
+
+## What Changes
+<List the systems/files affected from implementation plan or item description>
+
+## Impact
+**If not done**: <Describe consequences of not implementing>
+
+**If done**: <Describe benefits of implementing>
+
+**Breaking changes**: <None / describe any breaking changes>
+
+**Systems affected**:
+<List affected systems from implementation plan or item description>
+
+## Rollback
+If this feature causes issues:
+1. Remove the tool/feature from affected files
+2. Delete generated files
+3. Remove tests
+4. <Any data migration rollback steps>
+```
+
+4. Write `tasks.md`:
+   - If implementation plan exists: Extract detailed tasks from the plan
+   - If no implementation plan: Create tasks from the planning document's task list
+   - Break into atomic steps (1-3 files per task)
+   - Include library evaluation tasks if plan mentions alternatives
+   - Include preset implementation tasks if plan lists presets
+   - Include testing and documentation tasks
+
+### Part B: Changes from Code TODOs/FIXMEs
+
+For each item in Scout Agent 3's FEATURES and BUGS lists that represents
+**unfinished or planned work** from code comments:
 
 1. Create `openspec/changes/<kebab-name>/`
 2. Write `proposal.md`:
@@ -406,10 +519,40 @@ Original comment: `<exact text of the TODO/FIXME>`
 **Limit**: Create at most **20 changes** on first pass. If there are more,
 create a summary file at `openspec/changes/_backlog.md` listing all remaining items.
 
+### Part C: Future/Exploratory Backlog
+
+If Scout Agent 3 found **FUTURE_EXPLORATORY** items:
+
+1. Create `openspec/changes/_future-ideas.md`:
+
+```markdown
+# Future Ideas & Exploratory Work
+
+Items from <source file> and other exploratory notes.
+These are not committed work but ideas for future consideration.
+
+Source: <file path and section name>
+
+<Organize items by category if possible, otherwise list as-is>
+
+## <Category 1>
+- <item 1>
+- <item 2>
+
+## <Category 2>
+- <item 3>
+- <item 4>
+
+## Uncategorized
+- <remaining items>
+```
+
+2. Do NOT create full OpenSpec changes for exploratory items (they're not planned work)
+3. Note in migration report: "X exploratory ideas captured in openspec/changes/_future-ideas.md"
+
 > **Note on Beads sync:** Do NOT create Beads issues manually here.
-> After migration is complete, use the `/openspec-to-beads` skill to sync
-> all OpenSpec changes to Beads in one step. It was installed by
-> `openspec-stack-init` and handles this automatically.
+> After migration is complete, Phase 9 will automatically create Beads issues
+> from all OpenSpec changes.
 
 ---
 
@@ -491,6 +634,9 @@ By: /migrate-to-openspec skill
 ### Changes Created (<N> total)
 <list of changes/*/proposal.md with source location each>
 
+### Future Ideas
+<N exploratory ideas in changes/_future-ideas.md (if found)>
+
 ### Backlog
 <N remaining items in changes/_backlog.md — review manually>
 
@@ -549,10 +695,71 @@ Original CLAUDE.md backed up to: `CLAUDE.md.pre-migration`
 ## Suggested Next Steps
 
 1. Review this report carefully, especially the CLAUDE.md optimization section
-2. Run `/openspec-to-beads` — sync all OpenSpec changes to Beads issues
-3. Run `/opsx:explore` — let Claude validate the migration made sense
-4. Pick one change from openspec/changes/ and run `/opsx:apply <n>`
+2. Review Beads issues with `bd list --status=open` (<N> issues created automatically)
+3. Validate the migration baseline with `/opsx:explore` (already executed)
+4. Pick one change from openspec/changes/ and run `/opsx:apply <change-name>` to start implementation
 ```
+
+---
+
+## Phase 9: Create Beads Issues from OpenSpec Changes
+
+This phase converts all OpenSpec changes into Beads issues for task tracking.
+
+### Step 1 — Verify Beads is initialized
+
+```bash
+bd list --json 2>&1 || echo "BEADS_NOT_INITIALIZED"
+```
+
+If Beads is not initialized, skip this phase and note in the final announcement:
+"⚠️ Beads not initialized. Run `bd init` then manually create issues from openspec/changes/"
+
+### Step 2 — Loop through all OpenSpec changes
+
+```bash
+ls openspec/changes/ | grep -v "^_" | grep -v "archive"
+```
+
+For each change directory (excluding _backlog.md, _future-ideas.md, and archive/):
+
+1. Read `openspec/changes/<change>/proposal.md` to extract:
+   - Title (from first # heading)
+   - Goal/Why section (for description)
+
+2. Create Beads issue:
+   ```bash
+   bd create \
+     --title="<Title from proposal>" \
+     --type=feature \
+     --priority=2 \
+     --description="<Goal from proposal>. See openspec/changes/<change>/"
+   ```
+
+3. Capture the issue ID from output (format: `<project>-<id>`)
+
+### Step 3 — Report created issues
+
+Count total issues created and list them in format:
+```
+Created <N> Beads issues from OpenSpec changes:
+- <issue-id-1>: <title>
+- <issue-id-2>: <title>
+[...]
+```
+
+### Step 4 — Run opsx:explore for validation
+
+After all Beads issues are created, automatically invoke the opsx:explore skill:
+
+```bash
+# This will be handled by Skill tool invocation
+```
+
+Use the Skill tool to invoke `opsx:explore` with no arguments. This validates the migration baseline and explores the OpenSpec structure.
+
+If the skill invocation fails or the skill doesn't exist, note in the final announcement:
+"⚠️ Could not run /opsx:explore automatically. Run it manually to validate the migration."
 
 ---
 
@@ -564,15 +771,18 @@ Tell the user:
 >
 > - `openspec/config.yaml` — project context injected into every future spec
 > - `openspec/specs/` — <N> architecture and feature specs
-> - `openspec/changes/` — <N> active changes from TODOs/FIXMEs
+> - `openspec/changes/` — <N> active changes from planned work and code TODOs
+> - `openspec/changes/_future-ideas.md` — <N> exploratory ideas captured (if found)
 > - `CLAUDE.md` — optimized: <N> redundant doc references removed (~<N> tokens saved per session)
 > - `CLAUDE.md.pre-migration` — backup of original
 > - `openspec/MIGRATION_REPORT.md` — full summary, token savings, docs to archive
+> - **Beads issues**: <N> issues created from OpenSpec changes (or note if Beads not initialized)
+> - **Validation**: /opsx:explore executed (or note if failed)
 >
-> **Recommended next steps:**
-> 1. Read `openspec/MIGRATION_REPORT.md`
-> 2. Run `/openspec-to-beads` to sync changes → Beads issues
-> 3. Run `/opsx:explore` to validate the baseline
+> **Next steps:**
+> 1. Read `openspec/MIGRATION_REPORT.md` for detailed analysis
+> 2. Review Beads issues with `bd list --status=open`
+> 3. Pick a change and run `/opsx:apply <change-name>` to start implementation
 
 ---
 
